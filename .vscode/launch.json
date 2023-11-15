@@ -10,16 +10,18 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "justMyCode": true,
+            "justMyCode": false,
             "args": [
                 "--group=debug",
-                "--model=nerf",
-                "--yaml=nerf_blender_repr",
+                "--model=barf",
+                "--yaml=barf_blender",
                 "--data.scene=lego",
                 "--visdom=false",
                 "--nerf.density_noise_reg=1",
-                "--data.val_sub=",
-                "--resume", "--data.image_size=[800, 800]"
+                "--data.val_sub=2",
+                "--camera.from_scarch=true"
+                // "--resume", 
+                // "--data.image_size=[800, 800]",
             ]
         }
     ]

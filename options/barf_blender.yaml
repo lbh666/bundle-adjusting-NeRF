@@ -3,6 +3,7 @@ _parent_: options/nerf_blender.yaml
 barf_c2f:                                                   # coarse-to-fine scheduling on positional encoding
 
 camera:                                                     # camera options
+    from_scarch: false
     noise: 0.15                                             # synthetic perturbations on the camera poses (Blender only)
 
 optim:                                                      # optimization options

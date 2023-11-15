@@ -1,4 +1,4 @@
-name: train_final_stage0_w1_more_epoch
+name: original_nerf_no_downsample
 description: ""
 
 workspace: lbh 
@@ -12,7 +12,7 @@ searcher:
   metric: loss
   max_length: 1000
 environment:
-  image: registry.iaticetc.cn:5000/liaobh_vfi:latest
+  image: registry.iaticetc.cn:5000/lbh_nerf:latest
   registry_auth:
     username: lbh
     password: "1050208869"

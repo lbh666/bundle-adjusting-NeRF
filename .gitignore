@@ -133,3 +133,6 @@ dmypy.json
 data/blender
 data/event_blender
 output
+*.pth
+./run.sh
+./task.yaml
