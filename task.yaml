@@ -1,0 +1,19 @@
+name: train_final_stage0_w1_more_epoch
+description: ""
+
+workspace: lbh 
+project: Ev-NeRF 
+resources:
+  resource_pool: rtx2080ti 
+  slots_per_trial: 1
+max_restarts: 1
+searcher:
+  name: single
+  metric: loss
+  max_length: 1000
+environment:
+  image: registry.iaticetc.cn:5000/liaobh_vfi:latest
+  registry_auth:
+    username: lbh
+    password: "1050208869"
+entrypoint: bash run.sh

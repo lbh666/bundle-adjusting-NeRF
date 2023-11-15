@@ -20,7 +20,7 @@ nerf:                                                       # NeRF-specific opti
     fine_sampling: true                                     # hierarchical sampling with another NeRF
     sample_intvs_fine: 128                                  # number of samples for the fine NeRF
     rand_rays: 1024                                         # number of random rays for each step
-    density_noise_reg: 0                                    # Gaussian noise on density output as regularization
+    density_noise_reg: 1.0                                  # Gaussian noise on density output as regularization
     setbg_opaque: true                                      # fill transparent rendering with known background color (Blender only)
 
 data:                                                       # data options
