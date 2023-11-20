@@ -10,19 +10,80 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--modality", "video",
+                "--group", "both"
+            ]
+        },
+        {
+            "name": "BARF: noise pose",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--group=BARF",
+                "--name=noise_pose",
+                "--model=barf",
+                "--yaml=barf_blender",
+                "--camera.from_scarch=false",
+                "--resume"
+            ]
+        },
+        {
+            "name": "BARF: from scarch",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--group=BARF",
+                "--visdom=false",
+                "--name=from_scarch_debug",
+                "--model=barf",
+                "--yaml=barf_blender",
+                "--camera.from_scarch=true",
+                // "--resume"
+            ]
+        },
+        {
+            "name": "NeRF: raw",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
                 "--group=debug",
-                "--model=barf",
-                "--yaml=barf_blender",
+                "--model=nerf",
+                "--yaml=nerf_blender_repr",
                 "--data.scene=lego",
                 "--visdom=false",
                 "--nerf.density_noise_reg=1",
                 "--data.val_sub=2",
-                "--camera.from_scarch=true"
-                // "--resume", 
-                // "--data.image_size=[800, 800]",
+                "--data.root=data/event_blender"
             ]
-        }
+        },
+        {
+            "name": "Ev-BARF: from scarch",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--data.root=data/event_blender",
+                "--group=Ev-BARF",
+                "--name=from_scarch",
+                "--model=barf",
+                "--yaml=barf_blender",
+                "--camera.from_scarch=true",
+                "--data.val_sub=1",
+                // "--resume"
+            ]
+        },
     ]
 }

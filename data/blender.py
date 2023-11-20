@@ -21,6 +21,7 @@ class Dataset(base.Dataset):
         super().__init__(opt,split)
         self.root = opt.data.root or "data/blender"
         self.path = "{}/{}".format(self.root,opt.data.scene)
+        print(f'loaded data from {self.path}')
         # load/parse metadata
         meta_fname = "{}/transforms_{}.json".format(self.path,split)
         with open(meta_fname) as file:

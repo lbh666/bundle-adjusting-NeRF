@@ -1,3 +1,6 @@
-import lpips
+import torch
 
-lpips_loss = lpips.LPIPS(net="alex")
+
+x = torch.load(r'output\BARF\from_scarch\model.ckpt')
+
+print(x['graph']['se3_refine.weight'].shape)

@@ -133,4 +133,5 @@ dmypy.json
 data/blender
 data/event_blender
 output
+results
 *.pth

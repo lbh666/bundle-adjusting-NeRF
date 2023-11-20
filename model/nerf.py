@@ -124,7 +124,7 @@ class Model(base.Model):
             var = self.graph.forward(opt,var,mode="eval")
             # evaluate view synthesis
             invdepth = (1-var.depth)/var.opacity if opt.camera.ndc else 1/(var.depth/var.opacity+eps)
-            rgb_map = var.rgb.view(-1,opt.H,opt.W,3).permute(0,3,1,2) # [B,3,H,W]
+            rgb_map = var.rgb_fine.view(-1,opt.H,opt.W,3).permute(0,3,1,2) # [B,3,H,W]
             invdepth_map = invdepth.view(-1,opt.H,opt.W,1).permute(0,3,1,2) # [B,1,H,W]
             psnr = -10*self.graph.MSE_loss(rgb_map,var.image).log10().item()
             ssim = pytorch_ssim.ssim(rgb_map,var.image).item()
@@ -149,7 +149,7 @@ class Model(base.Model):
     @torch.no_grad()
     def generate_videos_synthesis(self,opt,eps=1e-10):
         self.graph.eval()
-        if opt.data.dataset=="blender":
+        if opt.data.dataset=="blender" and not opt.camera.from_scarch:
             test_path = "{}/test_view".format(opt.output_path)
             # assume the test view synthesis are already generated
             print("writing videos...")

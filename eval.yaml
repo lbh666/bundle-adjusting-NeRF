@@ -1,4 +1,4 @@
-name: BARF_event_blender_from_scarch
+name: original_nerf_eval
 description: ""
 
 workspace: lbh 
@@ -16,4 +16,4 @@ environment:
   registry_auth:
     username: lbh
     password: "1050208869"
-entrypoint: bash run.sh
+entrypoint: bash test.sh

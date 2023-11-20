@@ -136,3 +136,4 @@ output
 *.pth
 ./run.sh
 ./task.yaml
+results
