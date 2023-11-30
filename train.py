@@ -25,7 +25,8 @@ def main():
         m.setup_optimizer(opt)
         m.restore_checkpoint(opt)
         m.setup_visualizer(opt)
-
+        
+        m.get_all_training_poses(opt)
         m.train(opt)
 
 if __name__=="__main__":

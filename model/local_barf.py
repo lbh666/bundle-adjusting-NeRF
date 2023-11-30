@@ -23,37 +23,71 @@ class Model(nerf.Model):
 
     def build_networks(self,opt):
         super().build_networks(opt)
-        if opt.camera.noise:
-            # pre-generate synthetic pose perturbation
-            se3_noise = torch.randn(len(self.train_data),6,device=opt.device)*opt.camera.noise
-            self.graph.pose_noise = camera.lie.se3_to_SE3(se3_noise)
-        self.graph.se3_refine = torch.nn.Embedding(len(self.train_data),6).to(opt.device)
-        torch.nn.init.zeros_(self.graph.se3_refine.weight)
 
-    def setup_optimizer(self,opt):
-        super().setup_optimizer(opt)
+        # set up the pose optimize param
+        self.image_n = len(self.train_data.all.idx)
+        self.curr_idxs = []
+        self.graph.c2w = torch.nn.ParameterList()
+        self.optim_pose = torch.nn.ParameterList()
+        self.sched_pose = torch.nn.ParameterList()
+        self.curr_iter = 0
+        for _ in range(opt.optim.init_frames):
+            self.add_frame(opt)
+
+
+    def add_frame(self, opt):
+        log.info("add a new frame")
+        if len(self.graph.c2w) == 0:
+            self.graph.c2w.append(torch.zeros(6)).to(opt.device)
+        else:
+            self.graph.c2w.append(self.graph.c2w[-1].clone().detach())
         optimizer = getattr(torch.optim,opt.optim.algo)
-        self.optim_pose = optimizer([dict(params=self.graph.se3_refine.parameters(),lr=opt.optim.lr_pose)])
-        # set up scheduler
-        if opt.optim.sched_pose:
-            scheduler = getattr(torch.optim.lr_scheduler,opt.optim.sched_pose.type)
-            if opt.optim.lr_pose_end:
-                assert(opt.optim.sched_pose.type=="ExponentialLR")
-                opt.optim.sched_pose.gamma = (opt.optim.lr_pose_end/opt.optim.lr_pose)**(1./opt.max_iter)
-            kwargs = { k:v for k,v in opt.optim.sched_pose.items() if k!="type" }
-            self.sched_pose = scheduler(self.optim_pose,**kwargs)
+        self.optim_pose.append(optimizer([dict(params=self.graph.c2w[-1],lr=opt.optim.lr)]))
+
+        scheduler = getattr(torch.optim.lr_scheduler,opt.optim.sched.type)
+        if opt.optim.lr_end:
+            assert(opt.optim.sched.type=="ExponentialLR")
+            opt.optim.sched.gamma = (opt.optim.lr_end/opt.optim.lr)**(1./(opt.max_iter - self.curr_iter))
+        kwargs = { k:v for k,v in opt.optim.sched.items() if k!="type" }
+        self.sched_pose.append(scheduler(self.optim_pose[-1],**kwargs))
+        self.curr_idxs.append(len(self.curr_idxs))
+
+    def train(self,opt):
+        # before training
+        log.title("TRAINING START")
+        self.timer = edict(start=time.time(),it_mean=None)
+        self.graph.train()
+        self.ep = 0 # dummy for timer
+        # training
+        if self.iter_start==0: self.validate(opt,0)
+        loader = tqdm.trange(opt.max_iter,desc="training",leave=False)
+        for i, self.it in enumerate(loader):
+            if self.it<self.iter_start: continue
+            # set var to all available images
+            # var = self.train_data.all[self.curr_idxs]
+            var = edict({k:v[self.curr_idxs] for k,v in self.train_data.all.items()})
+            self.train_iteration(opt,var,loader)
+            if opt.optim.sched: self.sched.step()
+            if self.it%opt.freq.val==0: self.validate(opt,self.it)
+            if self.it%opt.freq.ckpt==0: self.save_checkpoint(opt,ep=None,it=self.it)
+            if self.it%opt.optim.add_frame_per_iters==0 and self.it > 0: self.add_frame(opt)
+            self.curr_iter += 1
+        # after training
+        if opt.tb:
+            self.tb.flush()
+            self.tb.close()
+        if opt.visdom: self.vis.close()
+        log.title("TRAINING DONE")
 
     def train_iteration(self,opt,var,loader):
-        self.optim_pose.zero_grad()
-        if opt.optim.warmup_pose:
-            # simple linear warmup of pose learning rate
-            self.optim_pose.param_groups[0]["lr_orig"] = self.optim_pose.param_groups[0]["lr"] # cache the original learning rate
-            self.optim_pose.param_groups[0]["lr"] *= min(1,self.it/opt.optim.warmup_pose)
+        for optim_pose in self.optim_pose:
+            optim_pose.zero_grad() 
         loss = super().train_iteration(opt,var,loader)
-        self.optim_pose.step()
-        if opt.optim.warmup_pose:
-            self.optim_pose.param_groups[0]["lr"] = self.optim_pose.param_groups[0]["lr_orig"] # reset learning rate
-        if opt.optim.sched_pose: self.sched_pose.step()
+        for optim_pose in self.optim_pose:
+            optim_pose.step()
+        if opt.optim.sched_pose:
+            for sched in self.sched_pose:
+                sched.step()
         self.graph.nerf.progress.data.fill_(self.it/opt.max_iter)
         if opt.nerf.fine_sampling:
             self.graph.nerf_fine.progress.data.fill_(self.it/opt.max_iter)
@@ -70,8 +104,9 @@ class Model(nerf.Model):
         super().log_scalars(opt,var,loss,metric=metric,step=step,split=split)
         if split=="train":
             # log learning rate
-            lr = self.optim_pose.param_groups[0]["lr"]
-            self.tb.add_scalar("{0}/{1}".format(split,"lr_pose"),lr,step)
+            for i, optim_pose in enumerate(self.optim_pose):
+                lr = optim_pose.param_groups[0]["lr"]
+                self.tb.add_scalar("{0}/{1}".format(split,f"lr_pose_img_{i}"),lr,step)
         # compute pose error
         if split=="train" and opt.data.dataset in ["blender","llff"]:
             pose,pose_GT = self.get_all_training_poses(opt)
@@ -89,18 +124,12 @@ class Model(nerf.Model):
                 util_vis.vis_cameras(opt,self.vis,step=step,poses=[pose,pose_GT])
 
     @torch.no_grad()
-    def get_all_training_poses(self,opt):
+    def get_all_training_poses(self, opt):
         # get ground-truth (canonical) camera poses
-        pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)
-        # add synthetic pose perturbation to all training data
-        if opt.data.dataset=="blender" and not opt.camera.from_scarch:
-            pose = pose_GT
-            if opt.camera.noise:
-                pose = camera.pose.compose([self.graph.pose_noise,pose])
-        else: pose = self.graph.pose_eye
+        pose_GT = self.train_data.get_all_camera_poses(opt).to(opt.device)[self.curr_idxs]
         # add learned pose correction to all training data
-        pose_refine = camera.lie.se3_to_SE3(self.graph.se3_refine.weight)
-        pose = camera.pose.compose([pose_refine,pose])
+        pose = camera.lie.se3_to_SE3(torch.stack([x.clone().detach() for x in self.graph.c2w], 0))
+
         return pose,pose_GT
 
     @torch.no_grad()
@@ -216,17 +245,7 @@ class Graph(nerf.Graph):
 
     def get_pose(self,opt,var,mode=None):
         if mode=="train":
-            # add the pre-generated pose perturbations
-            if opt.data.dataset=="blender" and not opt.camera.from_scarch:
-                if opt.camera.noise:
-                    var.pose_noise = self.pose_noise[var.idx]
-                    pose = camera.pose.compose([var.pose_noise,var.pose])
-                else: pose = var.pose
-            else: pose = self.pose_eye
-            # add learnable pose correction
-            var.se3_refine = self.se3_refine.weight[var.idx]
-            pose_refine = camera.lie.se3_to_SE3(var.se3_refine)
-            pose = camera.pose.compose([pose_refine,pose])
+            pose = camera.lie.se3_to_SE3(torch.stack([x.clone().detach() for x in self.c2w], 0))
         elif mode in ["val","eval","test-optim"]:
             # align test pose to refined coordinate system (up to sim3)
             sim3 = self.sim3
@@ -247,14 +266,14 @@ class NeRF(nerf.NeRF):
     def __init__(self,opt):
         super().__init__(opt)
         self.progress = torch.nn.Parameter(torch.tensor(0.)) # use Parameter so it could be checkpointed
+        self.alpha = 0.3
 
     def positional_encoding(self,opt,input,L): # [B,...,N]
         input_enc = super().positional_encoding(opt,input,L=L) # [B,...,2NL]
         # coarse-to-fine: smoothly mask positional encoding for BARF
         if opt.barf_c2f is not None:
             # set weights for different frequency bands
-            start,end = opt.barf_c2f
-            alpha = (self.progress.data-start)/(end-start)*L
+            alpha = self.alpha * L
             k = torch.arange(L,dtype=torch.float32,device=opt.device)
             weight = (1-(alpha-k).clamp_(min=0,max=1).mul_(np.pi).cos_())/2
             # apply weights

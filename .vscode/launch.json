@@ -5,6 +5,25 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "local-BARF: from scarch",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--data.root=data/event_blender",
+                "--group=BARF",
+                "--visdom=false",
+                "--name=from_scarch_debug",
+                "--model=local_barf",
+                "--yaml=local_barf_blender",
+                "--camera.from_scarch=true",
+                "--barf_c2f=[0.1,0.5]",
+                "--data.val_sub=1"
+            ]
+        },
+        {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
@@ -12,8 +31,10 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--modality", "video",
-                "--group", "both"
+                "--modality",
+                "video",
+                "--group",
+                "both"
             ]
         },
         {
@@ -42,11 +63,12 @@
             "args": [
                 "--group=BARF",
                 "--visdom=false",
-                "--name=from_scarch_debug",
+                "--name=from_scarch",
                 "--model=barf",
                 "--yaml=barf_blender",
                 "--camera.from_scarch=true",
-                // "--resume"
+                "--barf_c2f=[0.1,0.5]",
+                "--resume=60000"
             ]
         },
         {
@@ -82,7 +104,7 @@
                 "--yaml=barf_blender",
                 "--camera.from_scarch=true",
                 "--data.val_sub=1",
-                // "--resume"
+                "--resume"
             ]
         },
     ]

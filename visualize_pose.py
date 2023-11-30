@@ -27,7 +27,7 @@ def main():
         m.setup_optimizer(opt)
         m.restore_checkpoint(opt)
         m.setup_visualizer(opt)
-        align = True
+        align = False
         if align:
             pose_pred,pose_GT = m.get_all_training_poses(opt)
             poses = pose_pred if opt.model=="barf" else pose_GT
@@ -35,7 +35,7 @@ def main():
 
         else:
             pose,pose_GT = m.get_all_training_poses(opt)
-        util_vis.vis_cameras(opt,m.vis,step=0,poses=[pose,pose_GT])
+        util_vis.vis_cameras(opt,m.vis,step=0,poses=[pose[:10],pose_GT[:10]])
 
 if __name__=="__main__":
     main()
